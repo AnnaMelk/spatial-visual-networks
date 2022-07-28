@@ -192,7 +192,8 @@ def _numberofrings(nn):
 
 
 class Swarm:
-        def __init__(self,n=40,setup='grid',pos=None,pos_center=None,phi=None,w=0.4,l=0.,dist=2.,noise_pos=0.1,noise_phi=0.9,eliminate_overlaps=True):
+        def __init__(self,n=40,setup='grid',pos=None,pos_center=None,phi=None,w=0.4,l=0.,dist=2.,
+                     noise_pos=0.1,noise_phi=0.9,eliminate_overlaps=False, alpha=None):
                 """
                 Generate spatial configurations with pos/pos_center/phi (not given for now) and 
                 remove the overlaps between the nodes if possible
@@ -202,11 +203,13 @@ class Swarm:
                 self.l=l
                 self.n=n
                 if pos is None and pos_center is None and phi is None:
-                    #generate initial positions and orientations (phi) according to setup, N, noise_phi, dist, noise_pos and w
+                    #generate initial positions and orientations (phi) according to setup, N, 
+                    #noise_phi, dist, noise_pos and w
                     pos,phi=self._generate_initial_spatial_configuration(setup,n,noise_pos,dist,noise_phi,w)
                     self.pos_center=pos
                     self.pos=pos-np.array([-l/2.0*np.cos(phi),-l/2.0*np.sin(phi)])
                     self.phi=phi
+#                     print('orientations in _init: ' + str(phi))
                     #why reset calculated variables - erases old data and initializes variables
                     self._reset_calculated_variables()
                 else:
@@ -216,7 +219,8 @@ class Swarm:
                     elif pos_center is None and pos is not None:
                         self.set_positions_and_orientations(pos,phi,center=False)
                     else:
-                        print('Either pos or pos_center needs to be set. If you intend to generate positions, do NOT set either pos or pos_center or phi.')
+                        print('Set either pos or pos_center. If you intend to generate positions,')
+                        print('do NOT set either pos or pos_center or phi.')
                 if eliminate_overlaps and self.n>1:
                     ok_to_continue=self._eliminate_overlaps()
                 else:
@@ -239,7 +243,8 @@ class Swarm:
                                 for i in range(nn-number):
                                         extra=np.array([d*(xlen+1+np.floor(i/n)),d*(i%n+1)]).reshape(2,1)
                                         pos=np.hstack([pos,extra])
-                        orientations=np.random.vonmises(0.0,kappa,nn)
+                        orientations=np.random.vonmises(0,kappa,nn)
+#                         print('orientations in _generate: ' + str(orientations))
                         noise=(np.random.random((2,nn))-np.ones((2,nn))*0.5)*2.0*noise_int*d
                         pos=pos+noise
                         return pos,orientations 
@@ -281,8 +286,11 @@ class Swarm:
                         ypos=[]
                         orientations=[]
                         for i in np.arange(nr_rings):
-                                theta=2*np.pi*np.linspace(0,1,population[i],endpoint=False)+((np.random.random(population[i])-np.ones(population[i])*0.5)*2.0*noise_int*d)/radius[i]
-                                orientations.append(theta-np.pi/2.0*np.ones(population[i])+np.random.vonmises(0.0,kappa,population[i]))
+                                theta=2*np.pi*np.linspace(0,1,population[i],endpoint=False)
+                                +((np.random.random(population[i])-np.ones(population[i])*0.5)*2.0*noise_int
+                                  *d)/radius[i]
+                                orientations.append(theta-np.pi/2.0*np.ones(population[i])
+                                                    +np.random.vonmises(0.0,kappa,population[i]))
                                 xpos.append(radius[i]*np.cos(theta)+offset)
                                 ypos.append(radius[i]*np.sin(theta)+offset)
                         xpos=np.concatenate(xpos)
@@ -314,7 +322,8 @@ class Swarm:
         
         def set_positions_and_orientations(self,pos,phi,center=False):
                 '''
-                sets the positions of ellipse centers (center=True) or eyes (center=False) as well as orientations,
+                sets the positions of ellipse centers (center=True) or eyes (center=False) 
+                as well as orientations,
                 resets any measures previously derived from these quantities
                 
                 INPUT:
@@ -343,11 +352,14 @@ class Swarm:
                             self.pos_center=pos_center
                         if phi is not None:
                             if len(phi)==np.shape(pos_center)[1]:
-                                self.pos_center-=np.array([pos_offset/2.0*np.cos(phi),pos_offset/2.0*np.sin(phi)])
-                                self.pos=self.pos_center-np.array([-l/2.0*np.cos(phi),-l/2.0*np.sin(phi)])
+                                self.pos_center-=np.array([pos_offset/2.0*np.cos(phi),
+                                                           pos_offset/2.0*np.sin(phi)])
+                                self.pos=self.pos_center-np.array([-l/2.0*np.cos(phi),
+                                                                   -l/2.0*np.sin(phi)])
                                 self.phi=phi
                             else:
-                                print('Length of orientations array must correspond to number of given positions')
+                                print('Length of orientations array must correspond to') 
+                                print('number of given positions')
                                 return
                         else:
                             print('Please set orientations')
@@ -366,7 +378,8 @@ class Swarm:
                                 self.pos_center=self.pos+np.array([-l/2.0*np.cos(phi),-l/2.0*np.sin(phi)])
                                 self.phi=phi
                             else:
-                                print('Length of orientations array must correspond to number of given positions')
+                                print('Length of orientations array must correspond to number of given') 
+                                print('positions')
                                 return
                         else:
                             print('Please set orientations')
@@ -390,7 +403,9 @@ class Swarm:
                 self.metric_distance_center = metric_distance_center
                 # if any two ellipses are closer than 1 bodylength from each other
                 if np.sum(self.metric_distance_center<1.):
-                    potential_overlaps=np.array([np.array([a,b]) for a in range(self.n) for b in range(a) if self.metric_distance_center[a,b]<1.]).T
+                    potential_overlaps=np.array([np.array([a,b]) for a in range(self.n) 
+                                                 for b in range(a) if 
+                                                 self.metric_distance_center[a,b]<1.]).T
                     i=0
                     #used to return empty list if no overlaps found, 
                     #now if the list is empty, there are no overlaps
@@ -436,39 +451,13 @@ class Swarm:
             '''This function uses C++-code to shift and turn the ellipses
                such that they don't intersect anymore, positions and
                orientations are exchanged via temporary txt files
-                    - lamda1 - coefficient of the repulsion area of the cells (their main body) (0.01 - 0.05) \n");
+                    - lamda1 - coefficient of the repulsion area of the cells 
+                                (their main body) (0.01 - 0.05) \n");
                     - overdamp - coeffiecient that controls cell inertia (0 -1).'''
 
+            print('Function currently not working')
 
-            # save the current position data to file to be read by C-code           
-            if fileName=='random':
-                    fileName=str(int(np.random.random()*1000000))
-            outpath='./position_orientation_data_tmp/'+fileName
-            if not os.path.exists(outpath):
-                    os.makedirs(outpath)
-            pospath=outpath+'_pos.txt'
-            headingpath=outpath+'_phi.txt'
-            np.savetxt(pospath,self.pos_center.T,fmt='%1.8f')
-            np.savetxt(headingpath,self.phi,fmt='%1.8f')
-            resultpath=outpath
-            # execute the C-code
-            
-            #STILL TROUBLES WITH THIS PART!!
-            command="LD_LIBRARY_PATH=$HOME/anna_melkonyan/spatial-visual-networks/Palachanis2015_particle_system/build/pS {} {} {} {} {} {} {} 1.06 1. 0.".format(180,
-                            self.n,(self.w+0.06)/1.06,lamda1,overdamp,pospath,headingpath,resultpath)
-            os.system(command)
-            #load corrected positions and orientations from C-code output    
-            new_pos=np.loadtxt(resultpath+'/pos_d1.000_w%1.2f_bl1.1.txt'%((self.w+0.06)/1.06))
-            hxhy=np.loadtxt(resultpath+'/headings_d1.000_w%1.2f_bl1.1.txt'%((self.w+0.06)/1.06))
-            new_phi=np.arctan2(hxhy[:,1],hxhy[:,0])
 
-            #set the new positions and orientations
-            self.set_positions_and_orientations(new_pos,new_phi,center=True)
-            # remove the tmp files
-            shutil.rmtree(resultpath)
-            os.remove(pospath)
-            os.remove(headingpath)
-         
             
         def calc_visfield(self,check_intersects=True,reposition=True):
             # initialize class properties (used as global variables)
@@ -497,7 +486,9 @@ class Swarm:
         def calc_tps(self,check_intersects=True):
             ''' calculates the tangent points (tps) of ellipses after checking that they don't overlap'''
             if not check_intersects:
-                print("You are not checking for intersections of the ellipses. In case an eye of one ellipses                    lies inside the body of another ellipses, the analytical calculation will not work                    and you will get an error. ")
+                print("You are not checking for intersections of the ellipses. In case an eye of one ellipses\
+                    lies inside the body of another ellipses, the analytical calculation will not work\
+                    and you will get an error. ")
             check1=-1
             check2=-1
             if check_intersects:
@@ -551,7 +542,8 @@ class Swarm:
                     np.fill_diagonal(r_tp,0.0)
                     tp_subj.append(np.array([r_tp,theta_tp]))
                     '''transform tp to cartesian global coordinates'''
-                    pt_obj=pt_subj+np.array([np.array([self.pos[0],]*self.n),np.array(                    [self.pos[1],]*self.n)])
+                    pt_obj=pt_subj+np.array([np.array([self.pos[0],]*self.n),np.array(\
+                    [self.pos[1],]*self.n)])
                     np.fill_diagonal(pt_obj[0],0.0)
                     np.fill_diagonal(pt_obj[1],0.0)
                     tp_obj.append(pt_obj)
@@ -569,7 +561,8 @@ class Swarm:
                      first entry'''
                 md_center = self._calc_metric_distances()
                 intersecting=False
-                possible_intersect=np.array([np.array([a,b]) for a in range(self.n) for b in range(a) if md_center[a,b]<1.]).T
+                possible_intersect=np.array([np.array([a,b]) for a in range(self.n) 
+                                             for b in range(a) if md_center[a,b]<1.]).T
                 intersect_list=[]
                 eye_inside_list=[]
                 if np.sum(possible_intersect)!=0:
@@ -632,8 +625,11 @@ class Swarm:
             angles=self.tp_subj_pol[:,1].flatten(order='f')
             angles=np.sort(angles[~np.isnan(angles)].reshape(2*(self.n-1),self.n,order='f').T)
             
-            assert np.logical_and(angles.all()<=np.pi, angles.all()>=-np.pi), 'angles are not in pm pi interval'
-            between_angles=_cast_to_pm_pi(np.diff(angles,append=(2.*np.pi+angles[:,0]).reshape(self.n,1),axis=1)/2.+angles)
+            assert np.logical_and(angles.all()<=np.pi, 
+                                  angles.all()>=-np.pi), 'angles are not in pm pi interval'
+            between_angles=_cast_to_pm_pi(np.diff(angles,
+                                                  append=(2.*np.pi+angles[:,0]).reshape(self.n,1),
+                                                  axis=1)/2.+angles)
             #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             #  transformation of angles for the calculation of intersection points
             #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -642,17 +638,22 @@ class Swarm:
             phi=self.phi
             phi_hlp=np.repeat(phi.reshape(self.n,1),2*(self.n-1),axis=1)
             transf_betw_ang=between_angles+phi_hlp
-            raypoints=np.array([np.cos(transf_betw_ang),np.sin(transf_betw_ang)])+np.tile(self.pos,((self.n-1)*2,1,1)).transpose(1,2,0)
+            raypoints=np.array([np.cos(transf_betw_ang),
+                                np.sin(transf_betw_ang)])+np.tile(self.pos,
+                                                                  ((self.n-1)*2,1,1)).transpose(1,2,0)
 
             # here we need to transform the raypoints from global coordinates to local 
             # ones of the ellipse that we want to check of intersections 
             # (in a manner that will set up a nested for loop)
             raypoints=np.tile(raypoints,(self.n,1,1,1)).transpose(1,0,2,3) 
-            #indices: x/y ,N repetitions (in which coordinate system),focalid (seen from which eye),raypoints (which tangent point)
+            #indices: x/y ,N repetitions (in which coordinate system),focalid 
+            #(seen from which eye),raypoints (which tangent point)
             pos_hlp=np.tile(self.pos_center,(2*(self.n-1),1,1)).transpose(1,2,0)
             pos_hlp=np.tile(pos_hlp,(self.n,1,1,1)).transpose(1,2,0,3)
-            #indices: ijkl x/y,id (coordinate syst.=the individual that intersections will be found for), repetition (which eye), repetitions (which tangent point)
-            # shifting the raypoints to a coordinate system with origin in the center of the ellipse j (the one that intersections will be found for)
+            #indices: ijkl x/y,id (coordinate syst.=the individual that intersections will 
+            #be found for), repetition (which eye), repetitions (which tangent point)
+            # shifting the raypoints to a coordinate system with origin in the center of 
+            #the ellipse j (the one that intersections will be found for)
             raypoints-=pos_hlp
 
             #now go to polar coordinates and rotate the points by -phi, 
@@ -681,8 +682,6 @@ class Swarm:
             eyes=np.array([r*np.cos(theta),r*np.sin(theta)])
             #transformation done
             #+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
             #         Calculation of intersection points            
             #+++++++++++++++++++++++++++++++++++++++++++++++++++++++
             inters=get_ellipse_line_intersection_points(eyes,raypoints,self.w)
@@ -736,12 +735,15 @@ class Swarm:
                 mask=area[0]==i
                 angular_area[i,:]=np.sum(mask*area[1],axis=-1)
             self.ang_area=angular_area
+            #0 < wij = ang_area/pi < 1
 
 
             
         #Plotting-related functions    
-            
-        def plot_ellipses(self,fig=None,ax=None,color='seagreen',zorder=100,alpha=0.7,show_index=False,edgecolor='none', cmap=cm.Greys,show_eyes=True, eyecolor='k',eyesize=5,edgewidth=1,z_label='',norm_z=False,show_colorbar=True):
+        def plot_ellipses(self,fig=None,ax=None,color='seagreen',zorder=100,alpha=0.7,
+                          show_index=False,edgecolor='none', cmap=cmx.Greys,
+                          show_eyes=True, eyecolor='k',eyesize=5,edgewidth=1,
+                          z_label='',norm_z=False,show_colorbar=True):
             ellipses=[]
             if fig is None:
                 fig=plt.gcf()
@@ -762,11 +764,15 @@ class Swarm:
 
                 if show_colorbar:
                     ax1 = fig.add_axes([0.2, 0.2, 0.6, 0.03])
-                    cb_z =colorbar.ColorbarBase(ax1, cmap=cmap_z,norm=norm_z, orientation='horizontal',label=z_label)
+                    cb_z =colorbar.ColorbarBase(ax1, cmap=cmap_z,norm=norm_z, 
+                                                orientation='horizontal',
+                                                label=z_label)
 
 
             for i in range(self.n):
-                ellipses.append(Ellipse(self.pos_center[:,i],self.w,1.0,_cast_to_pm_pi(self.phi[i])*180.0/np.pi-90.0))
+#                 print('plot in draw: ' + str(self.phi))
+                ellipses.append(Ellipse(self.pos_center[:,i],self.w,1.0,
+                                        _cast_to_pm_pi(self.phi[i])*180.0/np.pi-90.0))
             for i in range(self.n):
                 ax.add_artist(ellipses[i])
                 ellipses[i].set_clip_box(ax.bbox)
@@ -790,6 +796,30 @@ class Swarm:
                 ax.scatter(self.pos[0,:],self.pos[1,:],color=color,s=size,zorder=10000)     
         
         
+#         def calculate_distance_matrix(self, pos):
+#             print(self.pos)
+#             X=np.reshape(pos[:],(-1,1))
+#             Y=np.reshape(pos[:],(-1,1))
+#             dX=np.subtract(X,X.T)
+#             dY=np.subtract(Y,Y.T)
+#             distmatrix=np.sqrt(dX**2+dY**2)
+#             return distmatrix,dX,dY
+        
+        def calc_link_weight(self, dist,alpha):
+            return 1./(1.+dist**alpha)
+
+
+        def calculate_links_with_weights(self, adjM, distmatrix, alpha):
+            if alpha is not None:
+                w_adjM = self.calc_link_weight(distmatrix, alpha)*adjM
+                avg_lw = np.mean(w_adjM[w_adjM>0])
+                instrength=np.sum(w_adjM,axis=0)
+            else:
+                w_adjM = adjM
+                avg_lw = np.mean(w_adjM[w_adjM>0])
+                instrength=np.sum(w_adjM,axis=0)
+            return w_adjM, avg_lw, instrength
+        
         def binary_visual_network(self,threshold=0.,return_networkX=False):
                 if np.sum(self.angular_area)==0:
                     self._calc_visual_fields()
@@ -797,11 +827,13 @@ class Swarm:
                 if return_networkX:
                     return [adjacency_matrix,self._create_network_graph(adjacency_matrix)]
                 else:
-                    return adjacency_matrix  
-                
+                    return adjacency_matrix 
+        
+        
         def _calc_visual_fields(self):
                 '''Calculates the visual field of all ellipses and returns 1 if successfull, 0 if not
-                    The calculated quantities are saved in the corresponding properties of the class instance,
+                    The calculated quantities are saved in the corresponding properties of the 
+                    class instance,
                     e.g. self.angular_area
                     '''
                 if np.sum(self.metric_distance_center)==0:
@@ -819,7 +851,10 @@ class Swarm:
                 return network   
             
             
-        def draw_binary_network(self,network,fig=None,ax=None,rad=0.0,draw_ellipses=True,ellipse_edgecolor='k',ellipse_facecolor='none',link_zorder=10,show_index=False,scale_arrow=10,linkalpha=0.5,lw=0.8,arrowstyle='-|>',linkcolor='0.4'):
+        def draw_binary_network(self,network,fig=None,ax=None,rad=0.0,draw_ellipses=True,
+                                ellipse_edgecolor='k',ellipse_facecolor='none',link_zorder=10,
+                                show_index=False,scale_arrow=10,linkalpha=0.5,lw=0.8,arrowstyle='-|>',
+                                linkcolor='0.4'):
                 '''
                 INPUT:
                 network                 nx.DiGraph(p)
@@ -834,7 +869,9 @@ class Swarm:
                 for n in network:
                         if show_index:
                                 ax.text(network.nodes[n]['pos'][0],network.nodes[n]['pos'][1],str(int(n)))      
-                        c=Ellipse(network.nodes[n]['pos']+np.array([-l/2.0*np.cos(network.nodes[n]['phi']),-l/2.0*np.sin(network.nodes[n]['phi'])]),w,1.0,network.nodes[n]['phi']*180.0/np.pi-90.0)
+                        c=Ellipse(network.nodes[n]['pos']+np.array([-l/2.0*np.cos(network.nodes[n]['phi']),
+                                                                    -l/2.0*np.sin(network.nodes[n]['phi'])]),
+                                  w,1.0,network.nodes[n]['phi']*180.0/np.pi-90.0)
                         ax.add_patch(c) 
                         c.set_facecolor(ellipse_facecolor) 
                         if draw_ellipses:
@@ -870,191 +907,311 @@ class Swarm:
                 ax.tick_params(axis='both', colors='0.5')
                 ax.spines['bottom'].set_color('0.5')
                 ax.spines['left'].set_color('0.5')            
+                
 
+        def draw_weighted_network(self,network,alpha,fig=None,ax=None,rad=0.0,draw_ellipses=True,
+                                  ellipse_edgecolor='k',ellipse_facecolor='none',link_zorder=10,
+                                  show_index=False,scale_arrow=10,linkalpha=1,lw=1.2,
+                                  arrowstyle='-',linkcolor='0.4', weight_given=True):
+                """
+                Draw a visual network with weighted links of one random node displayed
+                """
+                if fig is None:
+                        fig=plt.gcf()
+                if ax is None:
+                        ax=plt.gca()
+                l=self.l
+                w=self.w        
+                for n in network:
+                        if show_index:
+                                ax.text(network.nodes[n]['pos'][0],network.nodes[n]['pos'][1],str(int(n)))      
+                        c=Ellipse(network.nodes[n]['pos']+np.array([-l/2.0*np.cos(network.nodes[n]['phi']),
+                                                                    -l/2.0*np.sin(network.nodes[n]['phi'])]),
+                                  w,1.0,network.nodes[n]['phi']*180.0/np.pi-90.0)
+                        
+                        ax.add_patch(c) 
+                        c.set_facecolor(ellipse_facecolor) 
+                        if draw_ellipses:
+                                c.set_edgecolor(ellipse_edgecolor)
+                        else:
+                                c.set_edgecolor('none')
+                        network.nodes[n]['patch']=c
+                        
+                seen={}
+                data = []
+                random_node = np.random.choice(n)
+                viridis = cm = plt.get_cmap('rainbow') 
+                
+                for (u,v,d) in network.edges(data=True):
+                    
+                        n1=network.nodes[u]['patch']
+                        n2=network.nodes[v]['patch']
+                        
+                        max_weight = math.dist(network.nodes[0]['patch'].center, 
+                                                 network.nodes[1]['patch'].center)
+                        if weight_given:
+                            max_weight = self.calc_link_weight(max_weight, alpha)
 
-# In[5]:
-
-
-def Parallel_Simulation(inqueue, output):
-    for state,d,n,nphi,npos,w,st,reposition in iter(inqueue.get, sentinel):  
-        i=0
-        while i<5:
-            swarm=Swarm(setup=state,n=n,dist=d,noise_phi=nphi,noise_pos=npos,w=w,l=0.)
-
-
-########################## Start replacing with new code below this line ########################################################
-
-            ok=swarm.calc_visfield(reposition=reposition) 
-            print('calculated visual field')
-            if ok:    
-                        print('worked ok')
-                        hxhy=np.vstack([np.cos(swarm.phi),np.sin(swarm.phi)])
-                        data=[swarm.pos,hxhy,swarm.ang_area,swarm.md_center]
-                        param_groupname='/'+state+'/N%i'%n+'/w%1.2f'%w+'/noisePos%1.3f'%npos+'/noisePhi%1.5f'%nphi+'/dist%1.3f'%d
-                        data_name_list=['positions','hxhy','angularArea','metricDistances']#,'angularAreaNoOcclusions']
-                        output.put([param_groupname,data_name_list,data])
-                        i=5
-
-########################### Leave as is after this line #########################################################################                 
-            else:
-                i+=1
-            if i==5:
-                print('tried 5 times',d,n,nphi,npos,w,st)
-
-
-# In[6]:
-
-
-def Simple_Simulation(params):
-    # This is used for generating swarms without multiprocessing
-    # It is largely identical to the parallel version, just the data is
-    # handled differently
-    # It would be nice to write the parts that are used in both in an extra function
-    # but I haven't gotten around to it
-
-    state,d,n,nphi,npos,w,st,reposition =params
-    i=0
-    while i<5:
-        try:
-            swarm=Swarm(setup=state,n=n,dist=d,noise_phi=nphi,noise_pos=npos,w=w,l=0.)
-            ok=swarm.calc_visfield(reposition=reposition) 
-            print('calculated visual field')
-            if ok:    
-                    print('worked ok')
-                    hxhy=np.vstack([np.cos(swarm.phi),np.sin(swarm.phi)])
-                    data=[swarm.pos,hxhy,swarm.ang_area,swarm.md_center]
-                    print(data[1])
-                    param_groupname='/'+state+'/N%i'%n+'/w%1.2f'%w+'/noisePos%1.3f'%npos+'/noisePhi%1.5f'%nphi+'/dist%1.3f'%d
-                    data_name_list=['positions','hxhy','angularArea','metricDistances']
-                    nosuccess=False
-                    i=5
-                    return [param_groupname,data_name_list,data]
-        except:
-            i+=1
-        if i==5:
-            print('tried 5 times',d,n,nphi,npos,w,st)
-
-
-# In[7]:
-
-
-def handle_output(output):
-    # Handles the multiprocessing
-    hdf = h5py.File('trial_data.h5', 'a') #<- This was used before, instead of 
-    # the 'with h5py...as hdf' line. Change back if you encouter a problem with this. 
-    # don't forget to also change the last line to include the hdf.close() again
-    #with h5py.File('swarm_data.h5', 'a') as hdf:
-    while True:
-            args = output.get()
-            if args:
-                param_groupname, datanames, data = args
-                for j,name in enumerate(datanames):
-                    if param_groupname+'/'+name not in hdf:
-                        hdf.require_dataset(param_groupname+'/'+name,
-                                        data=data[j],shape=[1]+list(np.shape(data[j])),chunks=True,dtype='f',maxshape=(None,None,None))
-                    else:   
-                        hdf[param_groupname+'/'+name].resize((hdf[param_groupname+'/'+name].shape[0]+1),axis=0)
-                        hdf[param_groupname+'/'+name][-1]=data[j]
-            else:
-                break
+                        cNorm  = colors.PowerNorm(gamma=0.1, vmin=0, vmax=max_weight)
+                        scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=viridis)
+                        
+                        c = np.linspace(0, max_weight)
+                        
+                        if (u,v) in seen:
+                                rad=seen.get((u,v))
+                                rad=(rad+np.sign(rad)*0.1)*-1
+                                
+                        if u==random_node or v==random_node:
+                            length = math.dist(n1.center, n2.center)
             
-    hdf.close()
+                            if weight_given:
+                                length = self.calc_link_weight(length, alpha)
 
+                            data.append(length)
+                            colorVal = scalarMap.to_rgba(length)
+                            linkcolor = colorVal
+                        
+                            e = FancyArrowPatch(n1.center,n2.center,patchA=n1,patchB=n2,
+                                                                    arrowstyle=arrowstyle,
+                                                                    mutation_scale=scale_arrow,
+                                                                    connectionstyle='arc3,rad=%s'%rad,
+                                                                    lw=lw,
+                                                                    alpha=linkalpha,
+                                                                    color=linkcolor,zorder=link_zorder)
+                            seen[(u,v)]=rad
+                            ax.add_patch(e)
+                
+                ax.set_xlim(np.amin(self.pos_center[0])-1,np.amax(self.pos_center[0])+1)
+                ax.set_ylim(np.amin(self.pos_center[1])-1,np.amax(self.pos_center[1])+1)
+                ax.set_aspect('equal')
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.tick_params(axis='both', colors='0.5')
+                ax.spines['bottom'].set_color('0.5')
+                ax.spines['left'].set_color('0.5') 
+                 
+        
+        
+        def lin_equ(self, l1, l2):
+                """Line encoded as l=(x,y)."""
+                m = np.float((l2[1] - l1[1])) / np.float(l2[0] - l1[0])
+                c = (l2[1] - (m * l2[0]))
+                return m, c
+        
+        
+        def draw_regions(self,network,fig=None,ax=None,rad=0.0,draw_ellipses=True,
+                                ellipse_edgecolor='k',ellipse_facecolor='none',link_zorder=10,
+                                show_index=False,scale_arrow=10,linkalpha=1,lw=0.8,arrowstyle='-',
+                                linkcolor='0.4'):
+                """
+                Draw a network with thick lines separating four regions (up, right, down, left) 
+                of one random node (!!Does not work for nodes that are at the corner)
+                """
+                if fig is None:
+                        fig=plt.gcf()
+                if ax is None:
+                        ax=plt.gca()
+                l=self.l
+                w=self.w     
+                
+                positions = []
+                for n in network:
+                        positions.append(np.max(network.nodes[n]['pos']))
+                    
+                        if show_index:
+                                ax.text(network.nodes[n]['pos'][0],network.nodes[n]['pos'][1],str(int(n)))      
+                        c=Ellipse(network.nodes[n]['pos']+np.array([-l/2.0*np.cos(network.nodes[n]['phi']),
+                                                                    -l/2.0*np.sin(network.nodes[n]['phi'])]),
+                                  w,1.0,network.nodes[n]['phi']*180.0/np.pi-90.0)
+                        ax.add_patch(c) 
+                        c.set_facecolor(ellipse_facecolor) 
+                        if draw_ellipses:
+                                c.set_edgecolor(ellipse_edgecolor)
+                        else:
+                                c.set_edgecolor('none')
+                        network.nodes[n]['patch']=c
+                seen={}
 
-# In[8]:
-
-
-reposition=False
-state='grid'
-d=2.
-n=49
-nphi=0.1
-npos=0.1
-w = 0.3
-stats=np.arange(10)
-
-
-swarm=Swarm(setup='grid',n=49,dist=2,noise_phi=0.1,noise_pos=0.1,w=0.3,l=0.)
-ok = swarm._calc_visual_fields() 
-print('calculated visual field')
-if ok:    
-        print('worked ok')
-        hxhy=np.vstack([np.cos(swarm.phi),np.sin(swarm.phi)])
-        data=[swarm.pos,hxhy,swarm.ang_area,swarm.md_center]
-        param_groupname='/'+state+'/N%i'%n+'/w%1.2f'%w+'/noisePos%1.3f'%npos+'/noisePhi%1.5f'%nphi+'/dist%1.3f'%d
-        data_name_list=['positions','hxhy','angularArea','metricDistances','angularAreaNoOcclusions']
-        nosuccess=False
-
-
-# In[ ]:
-
-
-parallel=True
-reposition=False 
-# whether to shift the ellipses to avoid overlaps, not eliminating overlaps will cause errors in the 
-# visual field calculations at high density
-num_processors=7
+                limits = np.min(positions), np.max(positions)
+                x = np.linspace(limits[0], limits[1])
+            
+                random_node = np.random.choice(n)
+                node_center = network.nodes[random_node]['pos']
+                distance = math.dist(network.nodes[0]['pos'], network.nodes[1]['pos'])
+                diag_distance = np.round(distance*2/np.sqrt(2), 5)        
+        
+                arrows = []
+                ms = []
+                cs = []
+                diagonal = []
+                for (u,v,d) in network.edges(data=True):
+               
+                        n1=network.nodes[u]['patch']
+                        n2=network.nodes[v]['patch']
+                       
+                        if (u,v) in seen:
+                                rad=seen.get((u,v))
+                                rad=(rad+np.sign(rad)*0.1)*-1
+                                
+                        if u==random_node or v==random_node:
+                            length = np.round(math.dist(n1.center, n2.center), 5)
+                            if np.round(math.dist(n1.center, n2.center), 5)==diag_distance:
+                                diagonal_center = n1.center 
+                                diagonal.append(diagonal_center)
+                                if diagonal_center[0]!=node_center[0] and diagonal_center[1]!=node_center[1]:
+                                    m, c = self.lin_equ(diagonal_center, node_center)
+                                    ms.append(m)
+                                    cs.append(c)
+                                    ax.axline(diagonal_center, node_center, linewidth=3, 
+                                              alpha=0.5, color='r')
+                                    
+            
+                        #####################################
+                            e = FancyArrowPatch(n1.center,n2.center,patchA=n1,patchB=n2,
+                                                                    arrowstyle=arrowstyle,
+                                                                    mutation_scale=scale_arrow,
+                                                                    connectionstyle='arc3,rad=%s'%rad,
+                                                                    lw=lw,
+                                                                    alpha=linkalpha,
+                                                                    color=linkcolor,zorder=link_zorder)
+                            seen[(u,v)]=rad
+                            ax.add_patch(e)
+                            arrows.append(e.get_path())
+                        ##################################
+            
+        
+                print('ms: ' +str(ms))
+                print('cs: ' +str(cs))
+        
+                x_left = np.linspace(limits[0], node_center[0])
+                line1L = ms[0]*x_left+cs[0]
+                line2L = ms[1]*x_left+cs[1]
+                plt.fill_between(x_left, line1L, line2L, color='red', alpha=0.3)
+                
+                x_right = np.linspace(node_center[0], limits[1])
+                line1R = ms[0]*x_right+cs[0]
+                line2R = ms[1]*x_right+cs[1]
+                plt.fill_between(x_right, line1R, line2R, color='green', alpha=0.3)
+                
+                
+                ax.set_xlim(np.amin(self.pos_center[0])-1,np.amax(self.pos_center[0])+1)
+                ax.set_ylim(np.amin(self.pos_center[1])-1,np.amax(self.pos_center[1])+1)
+                ax.set_aspect('equal')
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.tick_params(axis='both', colors='0.5')
+                ax.spines['bottom'].set_color('0.5')
+                ax.spines['left'].set_color('0.5') 
+                
+            
  
-# Set parameters as lists, all combinations are calculated
-states=['grid']
-dist=np.array([3, 5, 7, 10])
-number=np.array([49])
-noisephi=[0.1, 0.4]
-noisepos=[0.1, 0.4]
-aspect=[0.1, 0.4]
-stats=np.arange(10) # how many configurations for each set of parameters
+        def get_angles(self,network,alpha, fig=None,ax=None,rad=0.0,draw_ellipses=True,
+                                ellipse_edgecolor='k',ellipse_facecolor='none',link_zorder=10,
+                                show_index=False,scale_arrow=10,linkalpha=0.5,lw=0.8,arrowstyle='-',
+                                linkcolor='blue'):
+                """
+                Returns two dictionaries:
+                1. 
+                """
+                l=self.l
+                w=self.w     
+                
+                node_loc = []
+                node_angles = []
+                for n in network:
+                        node_loc.append(network.nodes[n]['pos'])
+                        node_angles.append(network.nodes[n]['phi']) #angle in radians
+                    
+                        if show_index:
+                            
+                                ax.text(network.nodes[n]['pos'][0],network.nodes[n]['pos'][1],str(int(n)))      
+                        c=Ellipse(network.nodes[n]['pos']+np.array([-l/2.0*np.cos(network.nodes[n]['phi']),
+                                                                    -l/2.0*np.sin(network.nodes[n]['phi'])]),
+                                  w,1.0,network.nodes[n]['phi']*180.0/np.pi-90.0)
+                        network.nodes[n]['patch']=c
+                seen={}
 
-# Set up multiprocessing
-processes=len(dist)*len(number)*len(noisephi)*len(noisephi)*len(aspect)*len(stats)
-if processes<num_processors:
-    num_processors=processes
-print('number of processes ',num_processors)
-paramlist= it.product(states,dist,number,noisephi,noisepos,aspect,stats,[reposition])
+                random_node = np.random.choice(n)
+                node_center = network.nodes[random_node]['pos']
+                distance = math.dist(network.nodes[0]['pos'], network.nodes[1]['pos'])
+                diag_distance = np.round(distance*2/np.sqrt(2), 5)        
+        
+                seen_node = []
+                arrows = []
+                diagonal = []
+                arrows = []
+                
+                for (u,v,d) in network.edges(data=True):
+                    
+                        n1=network.nodes[u]['patch']
+                        n2=network.nodes[v]['patch']
+                       
+                        if (u,v) in seen:
+                                rad=seen.get((u,v))
+                                rad=(rad+np.sign(rad)*0.1)*-1
+                                
+                        arrows.append((n1.center,n2.center))
+                
+                all_areas = []
+                all_weight_areas = []
+                for n in network:
+                    node_center = network.nodes[n]['pos']
+                    seen_nodes = []
+                    joined_string = [element for element in node_center] 
 
-# Multiprocessing that writes into one HDF5 file. Because writing into the file can not be done in parallel by many processes, the results need to be queued before
-if parallel:
-    output = mp.Queue()
-    inqueue = mp.Queue()
-    jobs = []
-    proc = mp.Process(target=handle_output, args=(output, ))
-    proc.start()
-    for i in range(num_processors):
-        p = mp.Process(target=Parallel_Simulation, args=(inqueue, output))
-        jobs.append(p)
-        p.start()
-    for i in paramlist:
-        inqueue.put(i)
-    for i in range(num_processors):
-        # Send the sentinal to tell Simulation to end
-        inqueue.put(sentinel)
-    for p in jobs:
-        p.join()
-    output.put(None)
-    proc.join()
-# Version without parallel processing and saving each swarm to a txt file. I have only used this for debugging and you would have to change it to save to a SINGLE hdf5, if you want to run code on a single core only (without multiprocessing) and then use the process_swarm_data.py for processing (or simply use the parallel version above, which already generates the right hdf5 file)
-else:
-    data=[]
-    for params in paramlist:
-        print(params)
-        data.append(Simple_Simulation(params))
-    #print(np.shape(data))
-    for dat in data:
-        #print(dat)
-        for k,da in enumerate(dat[1]):
-            #print(da)
-            print('saving to '+dat[0].replace('/','_')+'_'+da+'.txt')
-            #print(dat[2][k])
-            np.savetxt(dat[0].replace('/','_')+'_'+da+'.txt',dat[2][k])
+                    for i in range(len(arrows)):
+                        if all(i==j for i, j in zip(arrows[i][0], joined_string)):
+                            check = arrows[i][1]
+                            seen_nodes.append(check)
+                        elif all(i==j for i, j in zip(arrows[i][1], joined_string)):
+                            check = arrows[i][0]
+                            seen_nodes.append(check)
 
+                    seen_unique = set(map(tuple, seen_nodes))
+                    #check the centers of the seen nodes only
+                    seen_loc = []
+                    for s in range(len(seen_unique)):
+                        for n in range(len(node_loc)):
+                            if np.all(list(seen_unique)[s]==node_loc[n]):
+                                seen_loc.append(node_loc[n])
 
-# In[ ]:
+                    #get the coordinates of the centers of the nodes to create vectors
+                    list_r_ij = [[node_center, r_ij] for r_ij in seen_loc]
+                    x_points = [(list_r_ij[i][1][0] - list_r_ij[i][0][0]) for i,x in enumerate(list_r_ij)]
+                    y_points = [(list_r_ij[i][1][1] - list_r_ij[i][0][1]) for i,x in enumerate(list_r_ij)]
+                    vectors = [[x, y] for x, y in zip(x_points, y_points)]
+                    norm_vectors = [n/np.linalg.norm(n) for n in vectors]
+                    #vector from the node of interest is always [1, 0]
+                    cv = [1, 0]
+                    angle_list = [math.atan2(cv[0]*nv[1]-cv[1]*nv[0],cv[0]*nv[0]+cv[1]*nv[1]) 
+                                  for nv in norm_vectors]
+                    vector_length = [np.linalg.norm(n) for n in vectors]
+                    length = [self.calc_link_weight(l, alpha) for l in vector_length]
+                    areas = {'Right': 0,  'Left': 0,  'Up': 0, 'Down':0}
+                    weight_areas = {'Right': 0,  'Left': 0,  'Up': 0, 'Down':0}
 
-
-print("Done!")
-
-
-# In[ ]:
-
-
-
-
+                    for i in range(len(angle_list)):
+                        if (-np.pi/4)<angle_list[i]<(np.pi/4):
+                            areas['Right'] += 1
+                            weight_areas['Right'] += length[i]/areas['Right']
+                        elif (np.pi/4)<angle_list[i]<((3*np.pi)/4):
+                            areas['Up'] += 1
+                            weight_areas['Up'] += length[i]/areas['Up']
+                        elif (((3*np.pi)/4)<angle_list[i]<=(np.pi) or(-(3*np.pi)/4)>angle_list[i]>=(-np.pi)):
+                            areas['Left'] += 1
+                            weight_areas['Left'] += length[i]/areas['Left']
+                        elif (-np.pi/4)>angle_list[i]>(-(3*np.pi)/4):
+                            areas['Down'] += 1
+                            weight_areas['Down'] += length[i]/areas['Down']
+    
+                    weights = {k:v/areas[k] if areas[k] else 0 for k, v in weight_areas.items() if k in areas}
+                    all_areas.append(areas)
+                    all_weight_areas.append(weights)
+        
+                df = pd.DataFrame(all_areas)
+                number_nodes = dict(df.mean())
+                
+                df_weight = pd.DataFrame(all_weight_areas)
+                nodes_weight = dict(df_weight.mean())
+                
+                return nodes_number, nodes_weight
