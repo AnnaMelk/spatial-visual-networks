@@ -1,5 +1,4 @@
 import numpy as np
-import ellipse_swarm as esw
 import matplotlib.pyplot as plt
 import itertools as it
 import pandas as pd
@@ -73,13 +72,13 @@ def get_parameter_lists_from_h5_file(file):
 def calc_network_measures(weighted_adjmat):
 	#calculates network measures using networkx functions
 	binary_adjmat=np.array(weighted_adjmat>0,dtype=int)
-	g=nx.DiGraph(incoming_graph_data=binary_adjmat)
+	g=nx.DiGraph(weighted_adjmat)
 	try:
-		avg_shortest_path=nx.average_shortest_path_length(g)
+		avg_shortest_path=nx.average_shortest_path_length(g, weight='weight')
 	except:
 		avg_shortest_path=np.nan
 	try:
-		clustering=np.array(list(nx.clustering(g).items()))[:,1]
+		clustering=np.array(list(nx.clustering(g, weight='weight').items()))[:,1]
 		avg_clustering=np.mean(clustering)
 		std_clustering=np.std(clustering)
 	except:
@@ -172,6 +171,7 @@ def run_data_processing(params):
 	dist,n,noisephi,noisepos,w,trial,threshold,setup,alpha,filepath=params
 	f=h5py.File(filepath,'r')
 	groupname=generate_groupname(params[:-1])
+	print(groupname)
 	if groupname in f and trial<np.shape(f[groupname+'/angularArea'])[0]:
 		adjMat=calc_weighted_adjacency_matrix(params[:-1],f)
 		polarization=calc_polarization(params[:-1],f)
@@ -185,67 +185,81 @@ def run_data_processing(params):
 		print('does not exist:',params)
 		return []
 
+	
+	
+	
 if __name__=="__main__":
-	parallel=True # If you set this to False, then the different parameter 
-	#sets are just calculated one after the other in a long loop (see below 
-	# if parallel, else)
-	no_processors=35
-	process_entire_file=True
-	data_file='/mnt/DATA/swarm_data_noisepos0.5_noisephi0.1_N225_forAnna.h5'
+    parallel=True # If you set this to False, then the different parameter 
+    #sets are just calculated one after the other in a long loop (see below 
+    # if parallel, else)
+    no_processors=7
+    process_entire_file=True
+    data_file='swarm_data_density.h5'
 
-	if process_entire_file:
-		#here we get all the parameter values present in the dataset
-		all_entries=get_parameter_lists_from_h5_file(data_file)
-		setup=all_entries[0]
-		number=all_entries[1]
-		aspect=all_entries[2]
-		noisepos=all_entries[3]
-		noisephi=all_entries[4]
-		dist=all_entries[5]
+    if process_entire_file:
+        #here we get all the parameter values present in the dataset
+        all_entries=get_parameter_lists_from_h5_file(data_file)
+        setup=all_entries[0]
+        number=all_entries[1]
+        aspect=all_entries[2]
+        noisepos=all_entries[3]
+        noisephi=all_entries[4]
+        dist=all_entries[5]
+        print(all_entries)
 
-	else:
-		#set which parameters you want to process 
-		#(it's always all possible combinations of them that will be used)
-		# if a combination is not in the data set you will see 'does not exist ...'
-		# printed in the terminal
-		setup=['grid']
-		number=[400]
-		aspect=[0.3]
-		noisepos=[0.5]
-		noisephi=np.logspace(-1, 1.5, 5)[1:4]
-		dist=[5.]
+    else:
+        #set which parameters you want to process 
+        #(it's always all possible combinations of them that will be used)
+        # if a combination is not in the data set you will see 'does not exist ...'
+        # printed in the terminal
+        setup=['grid']
+        dist=np.array([2., 5., 7., 10., 20.]) #[0.5, 0.84, 1., 1.5]) #2., 3., 4., 7., 10., 20]) #, 0.67, 0.84, 0.92, 1.0, 1.1, 1.18, 1.25, 1.38, 1.5, 1.75, 10.0, 2.0, 2.5, 20.0, 3.0, 4.0, 5.0, 7.5])#np.array([5.])#np.array([0.92,1.18,1.38])#np.array([0.5,1.,1.25,1.5,2.,3.,5.,10.,20.])#np.hstack([np.arange(0.4,2,0.2),[3,4,5,10,20]])
+        number=np.array([49, 225])
+        noisephi=[0.1, 0.4]#np.logspace(-1, 1.5, 5)[1:4]#[[1,2,4,5]]
+        noisepos=[0.1, 0.4]#[0.5]
+        aspect=[0.1,0.4]#,0.4,0.6,0.8]#,0.5,0.9]
+#         stats=np.arange(10)#30) # how many configurations for each set of parameters
         
-	visual_thresholds=np.array([0.,0.01,0.1])
-	alphas=np.linspace(0,2.,3,endpoint=True)
-	trials=np.arange(20)
-		
+    visual_thresholds=np.array([0.,0.01,0.1])
+    alphas=np.linspace(0,2.,30,endpoint=True)
+    trials=np.arange(5)
+
     
 # I left this structure for the threshold parameter. It is always a tuple, (), containing the
 # type of network (here only 'visual') and the value. I thought we might look at metric
 # networks at some point which will be easy in this setup
 
-	thresholds=[('visual',th) for th in visual_thresholds]#+[('metric',th) for th in metric_thresholds]#+[('topological',th) for th in topological_thresholds]
-	alphas=np.linspace(0,2,3,endpoint=True)
-	paramlist= it.product(dist,number,noisephi,noisepos,aspect,trials,thresholds,setup,alphas,[data_file])	
-	if parallel:  
-		processes=len(setup)*len(visual_thresholds)*len(dist)*len(number)*len(noisepos)*len(noisephi)*len(aspect)*len(trials)
-		if processes<no_processors:
-			no_processors=processes
-		print('number of processes ',no_processors)
-		comp_pool=mp.Pool(no_processors)
-		data=comp_pool.map(run_data_processing,paramlist)
+    thresholds=[('visual',th) for th in visual_thresholds]#+[('metric',th) for th in metric_thresholds]#+[('topological',th) for th in topological_thresholds]
+    alphas=np.linspace(0,2.,15,endpoint=True)
+    paramlist= it.product(dist,number,noisephi,noisepos,aspect,trials,thresholds,setup,alphas,[data_file])	
+    if parallel:  
+        processes=len(setup)*len(visual_thresholds)*len(dist)*len(number)*len(noisepos)*len(noisephi)*len(aspect)*len(trials)
+        print(processes)
+        print('setup ', setup)
+        print('visual_thresholds ', visual_thresholds)
+        print('dist ', dist)
+        print('number ', number)
+        print('noisepos ', noisepos)
+        print('noisephi ', noisephi)
+        print('aspect ', aspect)
+        print('trials ', trials)
+        if processes<no_processors:
+            no_processors=processes
+        print('number of processes ',no_processors)
+        comp_pool=mp.Pool(no_processors)
+        data=comp_pool.map(run_data_processing,paramlist)
 
-	else:
-		data=[]
-		for params in paramlist:
-			data.append(run_data_processing(params))
+    else:
+        data=[]
+        for params in paramlist:
+            data.append(run_data_processing(params))
 
-	columnnames=['density','polarization','avg_shortest_path','avg_clustering','std_clustering',
-			'number_connected_components','avg_indegree','std_indegree','avg_outdegree',
-			'std_outdegree','avg_instrength','std_instrength','avg_outstrength',
-			'std_outstrength','avg_rel_linklength','dist','N','noisephi','noisepos','aspect',
-			'trial','networktype','threshold','setup','alpha']
-	df=pd.DataFrame.from_records(data,columns=columnnames)
-	df=df.dropna()
-	filename=data_file.split('/')[-1]
-	df.to_hdf('/mnt/DATA/processed_'+filename,filename)
+    columnnames=['density','polarization','avg_shortest_path','avg_clustering','std_clustering',
+            'number_connected_components','avg_indegree','std_indegree','avg_outdegree',
+            'std_outdegree','avg_instrength','std_instrength','avg_outstrength',
+            'std_outstrength','avg_rel_linklength','dist','N','noisephi','noisepos','aspect',
+            'trial','networktype','threshold','setup','alpha']
+    df=pd.DataFrame.from_records(data,columns=columnnames)
+    df=df.dropna()
+    filename=data_file.split('/')[-1]
+    df.to_hdf('processed_'+filename,filename)
