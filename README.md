@@ -18,7 +18,7 @@ fig,ax=plt.subplots(1, figsize=(10,10))
 mySwarm.draw_weighted_network(visual_network,alpha=2,fig=fig,ax=ax,ellipse_edgecolor='k')
 ```
 
-![png](README_files/README_5_0.png)
+![png](Images/weightedN.png)
 
 ### 2. Visualise four regions of a node
 
@@ -29,7 +29,7 @@ visual_amat,visual_network=mySwarm.binary_visual_network(threshold=0.01,return_n
 mySwarm.draw_regions(visual_network, ellipse_edgecolor='k')
 ```
 
-![png](README_files/README_5_0.png)
+![png](Images/regionsN.png)
 
 ### 3. Calculate the average number of links and their weights in the four regions
 
@@ -113,7 +113,7 @@ plt.xticks([r + barWidth for r in range(len(R))],names)
 plt.legend()
 ```
 
-![png](README_files/README_5_0.png)
+![png](Images/numberN.png)
 
 
 #### 1.1. Ellipse properties:
