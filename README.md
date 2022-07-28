@@ -1,41 +1,117 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4983257.svg)](https://doi.org/10.5281/zenodo.4983257)
 
-## Generate binary spatial interaction networks for groups of ellipses and simulate contagion dynamics on them
- The code in ellipse_swarm.py can be used to generate spatially distributed groups of ellipses and calculate three different types of 
- spatial interaction networks based on their positions and orientations. In the (binary) interaction networks a link from individual i to individual j exists if...
- - Visual networks: ...individual j can see individual i. Visibility is defined as occupying an angular area larger than a threshold value in the visual field of individual j.
- - Metric networks: ... the euclidean distance between i and j is smaller than a threshold value.
- - Topological networks: ... if i is among the k nearest neighbors of j (k being the threshold parameter defining this network)
+## Visual network with weight weigthed based on distence: additions to the main branch
+Use Swarm_class.py to generate the network class first. It can only run vusial networks here and there are tree additional relevant functions added: 
+
+### 1. Visualise a node with weighted links
+
+```python
+#Provide parameters for the swarm
+mySwarm=Swarm(n=121, dist=5, setup='grid', noise_pos=0.1, noise_phi=100, alpha=2)
+visual_amat,visual_network=mySwarm.binary_visual_network(threshold=0.01,return_networkX=True)
+```
+
+```python
+#Plot the figure
+fig,ax=plt.subplots(1, figsize=(10,10))
+mySwarm.draw_weighted_network(visual_network,alpha=2,fig=fig,ax=ax,ellipse_edgecolor='k')
+```
+
+![png](README_files/README_5_0.png)
+
+### 2. Visualise four regions of a node
+
+```python
+plt.figure(figsize=(10, 10))
+mySwarm=Swarm(n=64, dist=2, setup='grid', noise_pos=0, noise_phi=0) #Only works for noise_pos=0!
+visual_amat,visual_network=mySwarm.binary_visual_network(threshold=0.01,return_networkX=True)
+mySwarm.draw_regions(visual_network, ellipse_edgecolor='k')
+```
+
+![png](README_files/README_5_0.png)
+
+### 3. Calculate the average number of links and their weights in the four regions
+
+```python
+mySwarm=Swarm(n=121, dist=3, setup='grid', noise_pos=0.1, noise_phi=100, alpha=0)
+visual_amat,visual_network=mySwarm.binary_visual_network(threshold=0.01,return_networkX=True)
+node_numbers, node_weights = mySwarm.get_angles(visual_network, alpha=0, ellipse_edgecolor='k')
+```
+
+```python
+#To collect data from different networks with different parameters, this code can be used 
+distances = [1.5, 3, 5, 11, 15, 36, 50, 110]
+alphas = [1, 2, 4]
+trials = 100
+area_rates = {}
+area_weights = {}
+
+for a in alphas:
+    for d in distances:
+        for n in range(trials):
+            numbers = []
+            weights = []
+            mySwarm=Swarm(n=225, dist=d, setup='grid', noise_pos=0, noise_phi=0, alpha=a)
+            visual_amat,visual_network=mySwarm.binary_visual_network(threshold=0.01,return_networkX=True)
+            node_numbers, node_weights = mySwarm.get_angles(visual_network,alpha=a,ellipse_edgecolor='k')
+            numbers.append(node_numbers)
+            weights.append(node_weights)
+
+        df_numbers = pd.DataFrame(numbers)
+        number_per_area = dict(df_numbers.mean())
+        area_rates['dist {} alpha {}'.format(d, a)] = number_per_area
+
+        df_weights = pd.DataFrame(weights)
+        weights_per_area = dict(df_weights.mean())
+        area_weights['dist {} alpha {}'.format(d, a)] = weights_per_area
+```
+
+```python
+#One of the ways to visualise the results 
+#First, format the data into a readable matrix
+names = list(area_rates.keys())
+areas = list(area_rates.values())
+matrix = np.empty((len(names), len(area_names)))
+
+data = []
+for i in range(len(areas)):
+    area_names = list(areas[i].keys())
+    area_values = list(areas[i].values())
+    data.append(area_values)
+
+for i in range(len(data)):
+    rows = data[i]
+    for j in range(len(rows)):
+        matrix[i][j] = rows[j]
+```
+
+```python
+#Visualization
+fig = plt.subplots(figsize =(12, 8))
+# Set position of bar on X axis
+R = matrix.T[0]
+L = matrix.T[1]
+U = matrix.T[2]
+D = matrix.T[3]
+
+br1 = np.arange(len(R))
+br2 = [x + barWidth for x in br1]
+br3 = [x + barWidth for x in br2]
+br4 = [x + barWidth for x in br3]
  
-Additionally, two types of contagion dynamics, a simple and a complex fractional contagion process, can be simulated using code provided in ContagionNetworks.py 
-
-```python
-import ellipse_swarm as esw
-import numpy as np
-import matplotlib.pyplot as plt
-import networkx as nx
-import ContagionNetworks as cc
+# Make the plot
+plt.bar(br1, R, width = barWidth, label ='Right')
+plt.bar(br2, L, width = barWidth, label ='Left')
+plt.bar(br3, U, width = barWidth, label ='Up')
+plt.bar(br4, D, width = barWidth, label ='Down')
+ 
+# Adding Xticks
+plt.xlabel('Distance, low polarization', fontweight ='bold', fontsize = 15)
+plt.ylabel('Average number of nodes', fontweight ='bold', fontsize = 15)
+plt.xticks([r + barWidth for r in range(len(R))],names)
+plt.legend()
 ```
-Inside ellipse_swarm.py there is a class called Swarm which can 
-- generate spatial configurations, 
-- calculate the visual field of each individual, 
-- calculate the binary interaction networks (visual, metric, topological)
-- do some plotting. 
-
-### 1. Initialize a swarm
-
-
-```python
-mySwarm=esw.Swarm(N=9) # N is the number of individuals in the swarm
-```
-
-
-```python
-# you can plot the ellipses via
-mySwarm.plot_ellipses()
-```
-
 
 ![png](README_files/README_5_0.png)
 
