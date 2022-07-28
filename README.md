@@ -116,94 +116,32 @@ plt.legend()
 ![png](Images/numberN.png)
 
 
-#### 1.1. Ellipse properties:
+## Contagion process
 
-Ellipses always have a length of one and one eye.
-
-Define the following ellipse properties when you create the swarm:
-- width given by parameter w, i.e. w=1 is a circle, default is 0.3 (0<w<=1)
-- position of the eye (black dot) is given by parameter l, l=-1 is the back, l=1 the front, l=0 the center (default)
+Running the contagion in the models is barely different, the only addition is the parameter
 
 
 ```python
-fig,ax=plt.subplots(1,4)
-swarm=esw.Swarm(N=1,w=0.1,l=0,noise_phi=10000,noise_pos=0)
-swarm.plot_ellipses(ax=ax[0])
-ax[0].set_title('w = 0.1,  l = 0')
+N=swarm.n
+init_infected_nodes = np.random.choice(N, 5)
+alpha = 1
+simple_params=InitParameters(simtime=50,N=N,contagion_type='simple',recovery_rate=0.2,
+                         init_infected_nodes=init_infected_nodes, infection_rate=0.5, alpha=alpha,
+                         threshold_complexContagion=None,steepness_complexContagion=None)
 
-swarm=esw.Swarm(N=1,w=0.5,l=0,noise_phi=10000,noise_pos=0)
-swarm.plot_ellipses(ax=ax[1])
-ax[1].set_title('w = 0.5,  l = 0')
-
-swarm=esw.Swarm(N=1,w=0.5,l=-1,noise_phi=10000,noise_pos=0)
-swarm.plot_ellipses(ax=ax[2])
-ax[2].set_title('w=0.5,  l = -1')
-
-swarm=esw.Swarm(N=1,w=0.5,l=1,noise_phi=10000,noise_pos=0)
-swarm.plot_ellipses(ax=ax[3])
-ax[3].set_title('w = 0.5,  l = 1')
-
-fig.set_size_inches(10,3)
-plt.subplots_adjust(wspace=0.3)
+fig,ax=plt.subplots(1)
+for i in range(10):
+    outdata = SingleRun(simple_params, adjM=adjacency_matrix, alpha=alpha, pos=swarm.pos.T)
+    time=outdata['time']
+    infected_fraction=(np.array(outdata['ninf']))/swarm.n
+    recovered_fraction=(np.array(outdata['nrec']))/swarm.n
+    ax.plot(time, infected_fraction,color='r')
+    ax.plot(time, recovered_fraction,color='b')
 ```
 
 
-![png](README_files/README_8_0.png)
+![png](Images/contagion.png)
 
-
-#### 1.2. Spatial configuration
-
-You can generate positions and orientations by specifying the following when initializing a swarm:
-- N (number of indidivuals)
-- setup ('grid' or 'milling' or 'hexagonal')
-- dist (average distance between individuals positions)
-- noise_pos (noise added to individuals positions)
-- noise_phi (noise added to individuals orientations)
-
-Let's illustrate the three setups (black, without added noise, red with noise):
-
-
-```python
-fig,ax=plt.subplots(1,3)
-#create the swarm without noise and plot it
-test_swarm=esw.Swarm(N=48,setup='milling',dist=2,noise_pos=0,noise_phi=10000)
-test_swarm.plot_ellipses(ax=ax[0],show_eyes=False,alpha=1)
-#create the swarm with noise and plot it
-test_swarm=esw.Swarm(N=48,setup='milling',dist=2,noise_pos=0.2,noise_phi=3)
-test_swarm.plot_ellipses(ax=ax[0],show_eyes=False,color='r',edgecolor='none')
-
-a=ax[0].set_title('milling')
-
-#create the swarm without noise and plot it
-test_swarm=esw.Swarm(N=48,setup='grid',dist=2,noise_pos=0,noise_phi=10000)
-test_swarm.plot_ellipses(ax=ax[1],show_eyes=False,alpha=1)
-#create the swarm with noise and plot it
-test_swarm=esw.Swarm(N=48,setup='grid',dist=2,noise_pos=0.2,noise_phi=3)
-test_swarm.plot_ellipses(ax=ax[1],show_eyes=False,color='r',edgecolor='none')
-
-a=ax[1].set_title('grid')
-
-#create the swarm without noise and plot it
-test_swarm=esw.Swarm(N=48,setup='hexagonal',dist=2,noise_pos=0,noise_phi=10000)
-test_swarm.plot_ellipses(ax=ax[2],show_eyes=False,alpha=1)
-#create the swarm with noise and plot it
-test_swarm=esw.Swarm(N=48,setup='hexagonal',dist=2,noise_pos=0.2,noise_phi=3)
-test_swarm.plot_ellipses(ax=ax[2],show_eyes=False,color='r',edgecolor='none')
-
-a=ax[2].set_title('hexagonal')
-fig.set_size_inches(15,10)
-```
-
-
-![png](README_files/README_11_0.png)
-
-
-You can also read in positions and orientations of the ellipses via giving
-- either of these two:
-    - pos (position of the eye of the ellipses) (Nx2 or 2xN array, does not matter which)
-    - pos_center (position of the center of the ellipses)
-- and phi (orientations in radians)
-at initialization or update them using swarm.set_pos_orient(pos,phi)
 
 ### 2. How to generate a visual, metric & topological network with a specific threshold
 
